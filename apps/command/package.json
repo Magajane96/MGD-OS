@@ -1,0 +1,31 @@
+{
+  "name": "@mgd/command",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "lint": "next lint || true",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mgd/advisor": "workspace:*",
+    "@mgd/business-brain": "workspace:*",
+    "@mgd/company-state": "workspace:*",
+    "@mgd/design-system": "workspace:*",
+    "@mgd/ui": "workspace:*",
+    "@mgd/widgets": "workspace:*",
+    "@mgd/types": "workspace:*",
+    "next": "^14.2.18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.7.2",
+    "tailwindcss": "^3.4.17",
+    "postcss": "^8.4.49",
+    "autoprefixer": "^10.4.20"
+  }
+}
