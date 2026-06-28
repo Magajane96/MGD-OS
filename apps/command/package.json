@@ -13,6 +13,7 @@
     "@mgd/business-brain": "workspace:*",
     "@mgd/company-state": "workspace:*",
     "@mgd/design-system": "workspace:*",
+    "@mgd/events": "workspace:*",
     "@mgd/ui": "workspace:*",
     "@mgd/widgets": "workspace:*",
     "@mgd/types": "workspace:*",

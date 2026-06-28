@@ -4,7 +4,10 @@
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "turbo dev",
+    "dev": "pnpm --filter @mgd/command dev",
+    "dev:command": "pnpm --filter @mgd/command dev",
+    "dev:commerce": "pnpm --filter @mgd/commerce dev",
+    "dev:all": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",

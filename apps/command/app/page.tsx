@@ -1,5 +1,14 @@
+import { generateExecutiveBriefing } from "@mgd/advisor";
+import { generateBusinessHealthReport } from "@mgd/business-brain";
 import { demoCompanyState } from "@mgd/company-state";
 import { mgdTheme } from "@mgd/design-system";
+import {
+  getLiveActivity,
+  getNotifications,
+  publishEvent,
+  seedCommandCenterEvents,
+  type MGDRealtimePriority,
+} from "@mgd/events";
 import {
   MGDAppShell,
   MGDBadge,
@@ -11,83 +20,28 @@ import {
   Sparkline,
   TokenSwatch,
 } from "@mgd/ui";
+import { demoCommerceSnapshot, generateCommerceEvents } from "@mgd/widgets";
 
 const state = demoCompanyState;
+const commerceSnapshot = demoCommerceSnapshot;
+seedCommandCenterEvents();
+generateCommerceEvents(commerceSnapshot).forEach((event) =>
+  publishEvent(event),
+);
+const healthReport = generateBusinessHealthReport(state, { commerceSnapshot });
+const executiveBriefing = generateExecutiveBriefing(healthReport);
 
-const healthSegments = [
-  { label: "Financeiro", value: 96, tone: "from-emerald-300 to-[#6D5DFC]" },
-  { label: "Marketing", value: 91, tone: "from-[#2F80FF] to-emerald-300" },
-  { label: "Operacao", value: 88, tone: "from-[#6D5DFC] to-[#2F80FF]" },
-  { label: "Clientes", value: 94, tone: "from-emerald-300 to-[#2F80FF]" },
-  { label: "Estoque", value: 82, tone: "from-amber-300 to-[#6D5DFC]" },
-  { label: "Conversao", value: 79, tone: "from-amber-300 to-emerald-300" },
-];
+const liveActivity = getLiveActivity(7);
+const notifications = getNotifications(5);
 
-const intelligenceSignals = [
-  {
-    title: "Receita crescendo.",
-    detail: "A receita de hoje esta 18% acima do ritmo anterior.",
-    tone: "success" as const,
-  },
-  {
-    title: "Estoque critico.",
-    detail: "Produto X precisa de reposicao antes do fim da semana.",
-    tone: "danger" as const,
-  },
-  {
-    title: "Clientes VIP.",
-    detail: "128 clientes de alto valor estao prontos para nova oferta.",
-    tone: "primary" as const,
-  },
-  {
-    title: "Proxima acao sugerida.",
-    detail: "Repor Produto X e manter a campanha de Instagram ativa.",
-    tone: "warning" as const,
-  },
-];
-
-const commandWidgets = [
-  {
-    title: "Receita",
-    eyebrow: "Finance signal",
-    status: `+${state.commerce.revenueTrendPercent}%`,
-    value: `R$ ${state.commerce.revenueToday.toLocaleString("pt-BR")}`,
-    caption: "Receita em tempo real",
-    tone: "success" as const,
-    footer: "Maior tracao vindo de campanhas sociais.",
-    values: [35, 44, 42, 58, 66, 78, 92],
-  },
-  {
-    title: "Pedidos",
-    eyebrow: "Operations queue",
-    status: "Atencao",
-    value: state.commerce.ordersWaiting,
-    caption: "pedidos aguardando envio",
-    tone: "warning" as const,
-    footer: "Separacao deve ser priorizada hoje.",
-    values: [62, 57, 50, 54, 48, 45, 42],
-  },
-  {
-    title: "Clientes",
-    eyebrow: "Customer pulse",
-    status: "Forte",
-    value: "42",
-    caption: "novos clientes hoje",
-    tone: "success" as const,
-    footer: "Base aquecida para recompra VIP.",
-    values: [28, 36, 44, 52, 61, 69, 77],
-  },
-  {
-    title: "Estoque",
-    eyebrow: "Inventory risk",
-    status: "Risco",
-    value: state.commerce.inventoryRisk.length,
-    caption: "produtos em atencao",
-    tone: "danger" as const,
-    footer: "Produto X exige reposicao imediata.",
-    values: [82, 70, 63, 54, 45, 36, 28],
-  },
-];
+const healthToneStyles = {
+  success: "from-emerald-300 to-[#6D5DFC]",
+  warning: "from-amber-300 to-[#6D5DFC]",
+  danger: "from-rose-300 to-amber-300",
+  info: "from-[#2F80FF] to-emerald-300",
+  primary: "from-[#6D5DFC] to-[#2F80FF]",
+  neutral: "from-white/40 to-white/20",
+} as const;
 
 const colorTokens = [
   {
@@ -112,13 +66,74 @@ const colorTokens = [
   },
 ];
 
+const commerceKpis = [
+  {
+    title: "Live Orders",
+    eyebrow: "Commerce stream",
+    status: `${commerceSnapshot.metrics.ordersCount} orders`,
+    value: commerceSnapshot.metrics.ordersCount,
+    caption: `${commerceSnapshot.metrics.pendingOrders} pedidos pendentes`,
+    tone: commerceSnapshot.metrics.pendingOrders > 2 ? "warning" : "success",
+    trend: commerceSnapshot.orders.map((order) =>
+      Math.max(18, order.total / 28),
+    ),
+    footer: "Pedidos consolidados pelo Commerce Adapter.",
+  },
+  {
+    title: "Revenue Today",
+    eyebrow: "Sales pulse",
+    status: "Hoje",
+    value: `R$ ${commerceSnapshot.metrics.revenue.today.toLocaleString("pt-BR")}`,
+    caption: `Semana R$ ${commerceSnapshot.metrics.revenue.week.toLocaleString("pt-BR")}`,
+    tone: "success",
+    trend: [28, 42, 58, 67, 73, 84, 92],
+    footer: "Receita calculada a partir dos pedidos do dia.",
+  },
+  {
+    title: "Average Ticket",
+    eyebrow: "Order quality",
+    status: "Ticket",
+    value: `R$ ${commerceSnapshot.metrics.revenue.averageTicket.toLocaleString("pt-BR")}`,
+    caption: `${commerceSnapshot.metrics.revenue.conversionRate.toFixed(1)}% conversao`,
+    tone: "primary",
+    trend: [34, 46, 48, 55, 63, 69, 76],
+    footer: "Ticket medio e conversao simulada para leitura executiva.",
+  },
+  {
+    title: "Inventory Risk",
+    eyebrow: "Critical stock",
+    status:
+      commerceSnapshot.metrics.inventory.criticalStockCount > 0
+        ? "Atencao"
+        : "Seguro",
+    value: commerceSnapshot.metrics.inventory.criticalStockCount,
+    caption: "produtos criticos",
+    tone:
+      commerceSnapshot.metrics.inventory.criticalStockCount > 0
+        ? "danger"
+        : "success",
+    trend: [88, 72, 60, 48, 42, 34, 28],
+    footer: "Produtos abaixo do estoque de seguranca.",
+  },
+] as const;
+
+const priorityTone: Record<
+  MGDRealtimePriority,
+  "neutral" | "success" | "warning" | "danger" | "info" | "primary"
+> = {
+  low: "neutral",
+  normal: "info",
+  high: "warning",
+  critical: "danger",
+};
+
 export default function CommandCenterPage() {
   return (
     <MGDAppShell>
       <div className="mx-auto max-w-7xl">
         <MGDTopBar />
 
-        <section className="mb-6 grid gap-5 xl:grid-cols-[1.45fr_.55fr]">
+        <section className="mb-6 grid gap-5 xl:grid-cols-[1.35fr_.65fr]">
           <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-gradient-to-br from-white/[0.10] via-white/[0.045] to-white/[0.025] p-7 shadow-2xl shadow-black/35 backdrop-blur-xl lg:p-9">
             <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
             <div className="pointer-events-none absolute right-[-120px] top-[-120px] h-80 w-80 rounded-full bg-[#6D5DFC]/18 blur-3xl" />
@@ -126,15 +141,17 @@ export default function CommandCenterPage() {
 
             <div className="relative">
               <div className="flex flex-wrap items-center gap-3">
-                <MGDBadge tone="primary">Executive cockpit</MGDBadge>
+                <MGDBadge tone="primary">Commerce Integration</MGDBadge>
                 <MGDBadge tone="success">Operational status online</MGDBadge>
+                <MGDBadge tone="info">Sprint 008</MGDBadge>
               </div>
 
               <h1 className="mt-6 max-w-4xl text-5xl font-semibold leading-none tracking-tight text-white lg:text-7xl">
                 Digital Mission Control
               </h1>
               <p className="mt-5 max-w-3xl text-lg leading-8 text-white/68">
-                Sua empresa em modo cockpit executivo.
+                Sua empresa em modo cockpit executivo, agora recebendo eventos,
+                metricas e sinais comerciais em tempo real.
               </p>
 
               <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -143,69 +160,190 @@ export default function CommandCenterPage() {
                     Business Health Score
                   </p>
                   <p className="mt-3 text-4xl font-semibold text-emerald-300">
-                    {state.health.score}/100
+                    {healthReport.score}/100
                   </p>
                 </div>
                 <div className="rounded-[24px] border border-white/10 bg-[#050816]/35 p-4">
                   <p className="text-xs uppercase tracking-[0.22em] text-white/35">
-                    Status operacional
+                    Company Pulse
                   </p>
                   <p className="mt-3 text-2xl font-semibold text-white">
-                    Stable
+                    {healthReport.operatingMode}
                   </p>
                 </div>
                 <div className="rounded-[24px] border border-white/10 bg-[#050816]/35 p-4">
                   <p className="text-xs uppercase tracking-[0.22em] text-white/35">
-                    Resumo executivo
+                    Executive focus
                   </p>
                   <p className="mt-3 text-sm leading-6 text-white/65">
-                    Receita em alta, operacao saudavel e estoque no radar.
+                    {healthReport.executiveFocus}
                   </p>
                 </div>
               </div>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <MGDButton>Executar acao sugerida</MGDButton>
-                <MGDButton variant="secondary">Ver prioridades</MGDButton>
+                <MGDButton>
+                  {executiveBriefing.nextBestActions[0]?.nextAction ??
+                    healthReport.intelligence.nextBestAction}
+                </MGDButton>
+                <MGDButton variant="secondary">Abrir Priority Center</MGDButton>
               </div>
             </div>
           </div>
 
           <MGDWidget
-            title="Business Health"
-            eyebrow="Company score"
-            status={`${state.health.score}/100`}
-            tone="success"
+            title="Company Pulse"
+            eyebrow="Live operating pulse"
+            status={healthReport.status}
+            tone={healthReport.score >= 85 ? "success" : "warning"}
             className="bg-[#111A2E]/88"
           >
-            <div className="flex items-end justify-between gap-4">
+            <div className="mb-5 flex items-end justify-between gap-4">
               <div>
-                <p className="text-7xl font-bold tracking-tight">
-                  {state.health.score}
+                <p className="text-6xl font-bold tracking-tight">
+                  {healthReport.score}
                 </p>
                 <p className="mt-2 text-sm font-semibold text-emerald-300">
-                  Empresa saudavel
+                  {healthReport.summary}
                 </p>
               </div>
-              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-right">
-                <p className="text-xs text-white/45">Signal</p>
-                <p className="mt-1 text-sm font-semibold text-emerald-300">
-                  Strong
-                </p>
-              </div>
+              <Sparkline
+                values={healthReport.healthBars.map((bar) => bar.score)}
+              />
             </div>
+            <div className="space-y-3">
+              {healthReport.companyPulse.map((item) => (
+                <MetricLine
+                  key={item.label}
+                  label={item.label}
+                  value={item.value}
+                  tone={item.tone}
+                />
+              ))}
+            </div>
+          </MGDWidget>
+        </section>
 
-            <div className="mt-6 space-y-3">
-              {healthSegments.map((item) => (
-                <div key={item.label}>
-                  <div className="mb-1 flex justify-between text-xs text-white/50">
-                    <span>{item.label}</span>
-                    <span>{item.value}</span>
+        <section className="mb-6">
+          <SectionHeader
+            eyebrow="Executive KPI Cards"
+            title="Performance snapshot"
+            description="Indicadores executivos gerados pelo Business Health Engine para leitura imediata de tendencia."
+          />
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {healthReport.executiveKpis.map((kpi) => (
+              <MGDWidget
+                key={kpi.title}
+                title={kpi.title}
+                eyebrow={kpi.eyebrow}
+                status={kpi.status}
+                tone={kpi.tone}
+                footer={kpi.footer}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-4xl font-semibold">{kpi.value}</div>
+                    <p className="mt-3 text-sm text-white/55">{kpi.caption}</p>
+                  </div>
+                  <span className="mt-1 h-3 w-3 rounded-full bg-current text-emerald-300 shadow-[0_0_24px_currentColor]" />
+                </div>
+                <div className="mt-5">
+                  <Sparkline values={kpi.trend} />
+                </div>
+              </MGDWidget>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-6">
+          <SectionHeader
+            eyebrow="Commerce Integration"
+            title="Commerce Pulse"
+            description="Snapshot comercial consolidado por adapter, pronto para trocar mock por banco ou API sem alterar a interface."
+          />
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {commerceKpis.map((kpi) => (
+              <MGDWidget
+                key={kpi.title}
+                title={kpi.title}
+                eyebrow={kpi.eyebrow}
+                status={kpi.status}
+                tone={kpi.tone}
+                footer={kpi.footer}
+              >
+                <div className="text-4xl font-semibold">{kpi.value}</div>
+                <p className="mt-3 text-sm text-white/55">{kpi.caption}</p>
+                <div className="mt-5">
+                  <Sparkline values={[...kpi.trend]} />
+                </div>
+              </MGDWidget>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-6 grid gap-5 xl:grid-cols-[.85fr_1.15fr]">
+          <MGDWidget
+            title="VIP Customers"
+            eyebrow="Customer metrics"
+            status={`${commerceSnapshot.metrics.customers.vipCustomers} VIP`}
+            tone="primary"
+            footer="Clientes de maior valor vindos do Commerce Snapshot."
+          >
+            <div className="space-y-3">
+              <MetricLine
+                label="Clientes ativos"
+                value={commerceSnapshot.metrics.customers.activeCustomers}
+                tone="success"
+              />
+              <MetricLine
+                label="Novos clientes"
+                value={commerceSnapshot.metrics.customers.newCustomers}
+                tone="info"
+              />
+              <MetricLine
+                label="Clientes VIP"
+                value={commerceSnapshot.metrics.customers.vipCustomers}
+                tone="primary"
+              />
+              <MetricLine
+                label="Receita mensal"
+                value={`R$ ${commerceSnapshot.metrics.revenue.month.toLocaleString("pt-BR")}`}
+                tone="success"
+              />
+            </div>
+          </MGDWidget>
+
+          <MGDWidget
+            title="Sales Channels"
+            eyebrow="Channel performance"
+            status={`${commerceSnapshot.metrics.salesChannels.length} canais`}
+            tone="info"
+            footer="Canais calculados por receita e participacao no snapshot."
+          >
+            <div className="space-y-4">
+              {commerceSnapshot.metrics.salesChannels.map((channel) => (
+                <div
+                  key={channel.channel}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                >
+                  <div className="mb-3 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-white">
+                        {channel.channel}
+                      </p>
+                      <p className="mt-1 text-sm text-white/45">
+                        {channel.orders} pedidos / R${" "}
+                        {channel.revenue.toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                    <MGDBadge tone={channel.share >= 30 ? "success" : "info"}>
+                      {channel.share}%
+                    </MGDBadge>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-white/10">
                     <div
-                      className={`h-2 rounded-full bg-gradient-to-r ${item.tone}`}
-                      style={{ width: `${item.value}%` }}
+                      className="h-2 rounded-full bg-gradient-to-r from-[#6D5DFC] to-emerald-300"
+                      style={{ width: `${channel.share}%` }}
                     />
                   </div>
                 </div>
@@ -214,50 +352,102 @@ export default function CommandCenterPage() {
           </MGDWidget>
         </section>
 
-        <section className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          {commandWidgets.map((widget) => (
-            <MGDWidget
-              key={widget.title}
-              title={widget.title}
-              eyebrow={widget.eyebrow}
-              status={widget.status}
-              tone={widget.tone}
-              footer={widget.footer}
-            >
-              <div className="text-4xl font-semibold">{widget.value}</div>
-              <p className="mt-3 text-sm text-white/55">{widget.caption}</p>
-              <div className="mt-5">
-                <Sparkline values={widget.values} />
-              </div>
-            </MGDWidget>
-          ))}
-        </section>
-
-        <section className="mb-6 grid gap-5 xl:grid-cols-[.85fr_1.15fr]">
+        <section className="mb-6 grid gap-5 xl:grid-cols-[1.05fr_.95fr]">
           <MGDWidget
-            title="Health"
-            eyebrow="Barra de saude"
-            status="6 areas"
-            tone="primary"
-            footer="Leitura consolidada do estado empresarial."
+            title="Live Activity"
+            eyebrow="Realtime event bus"
+            status={`${liveActivity.length} events`}
+            tone="success"
+            footer="Atividade consolidada do barramento interno do MGD OS."
           >
             <div className="space-y-4">
-              {healthSegments.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              {liveActivity.map((event) => (
+                <div
+                  key={event.id}
+                  className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:grid-cols-[64px_1fr_auto]"
+                >
+                  <span className="text-sm font-semibold text-white/40">
+                    {event.time}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-white">{event.title}</p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/35">
+                      {event.source} / {event.eventType}
+                    </p>
+                  </div>
+                  <div className="sm:text-right">
+                    <MGDBadge tone={priorityTone[event.priority]}>
+                      {event.priority}
+                    </MGDBadge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </MGDWidget>
+
+          <MGDWidget
+            title="Notification Center"
+            eyebrow="Reusable notifications"
+            status={`${notifications.length} active`}
+            tone="primary"
+            footer="Centro preparado para receber eventos de Commerce, Finance, CRM e futuros modulos."
+          >
+            <div className="space-y-4">
+              {notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-white">
+                        {notification.title}
+                      </p>
+                      <p className="mt-1 text-sm text-white/45">
+                        {notification.origin} / {notification.time}
+                      </p>
+                    </div>
+                    <MGDBadge tone={priorityTone[notification.priority]}>
+                      {notification.priority}
+                    </MGDBadge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </MGDWidget>
+        </section>
+
+        <section className="mb-6 grid gap-5 xl:grid-cols-[.78fr_1.22fr]">
+          <MGDWidget
+            title="Business Health"
+            eyebrow="Calculated health bars"
+            status={`${healthReport.healthBars.length} areas`}
+            tone="primary"
+            footer="Leitura consolidada pelo motor desacoplado de saude empresarial."
+          >
+            <div className="space-y-4">
+              {healthReport.healthBars.map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                >
                   <div className="mb-3 flex items-center justify-between">
                     <span className="text-sm font-semibold text-white/75">
                       {item.label}
                     </span>
                     <span className="text-sm font-semibold text-white">
-                      {item.value}%
+                      {item.score}%
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-white/10">
                     <div
-                      className={`h-2 rounded-full bg-gradient-to-r ${item.tone}`}
-                      style={{ width: `${item.value}%` }}
+                      className={`h-2 rounded-full bg-gradient-to-r ${healthToneStyles[item.tone]}`}
+                      style={{ width: `${item.score}%` }}
                     />
                   </div>
+                  <p className="mt-3 text-xs leading-5 text-white/42">
+                    {item.recommendation}
+                  </p>
                 </div>
               ))}
             </div>
@@ -265,49 +455,144 @@ export default function CommandCenterPage() {
 
           <MGDWidget
             title="MGD Intelligence"
-            eyebrow="Executive recommendations"
-            status="4 insights"
+            eyebrow="Executive digital director"
+            status={`${executiveBriefing.confidence}% confidence`}
             tone="info"
-            footer="Recomendacoes geradas a partir dos sinais operacionais."
+            footer="Briefing executivo gerado pela Intelligence Layer a partir do Business Health Engine."
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              {intelligenceSignals.map((signal) => (
-                <div
-                  key={signal.title}
-                  className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
-                >
-                  <MGDBadge tone={signal.tone}>{signal.title}</MGDBadge>
-                  <p className="mt-4 text-sm leading-6 text-white/60">
-                    {signal.detail}
+            <div className="grid gap-5 lg:grid-cols-[1.05fr_.95fr]">
+              <div>
+                <div className="rounded-[24px] border border-white/10 bg-white/[0.035] p-5">
+                  <MGDBadge tone="primary">
+                    {executiveBriefing.greeting}
+                  </MGDBadge>
+                  <p className="mt-4 text-sm leading-6 text-white/62">
+                    {executiveBriefing.summary}
+                  </p>
+                  <p className="mt-4 text-sm leading-6 text-white/48">
+                    {executiveBriefing.diagnosis}
                   </p>
                 </div>
-              ))}
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  {executiveBriefing.priorities.slice(0, 2).map((priority) => (
+                    <div
+                      key={priority.id}
+                      className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
+                    >
+                      <MGDBadge tone={priority.tone}>
+                        {priority.relatedArea}
+                      </MGDBadge>
+                      <p className="mt-4 font-semibold text-white">
+                        {priority.title}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-white/55">
+                        {priority.description}
+                      </p>
+                      <p className="mt-3 text-xs font-semibold text-white/40">
+                        {priority.impact}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-[24px] border border-[#6D5DFC]/20 bg-[#6D5DFC]/10 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-violet-200">
+                    Executive briefing
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    <MetricLine
+                      label="AI confidence"
+                      value={`${executiveBriefing.confidence}%`}
+                      tone="success"
+                    />
+                    <MetricLine
+                      label="Expected impact"
+                      value={executiveBriefing.expectedImpact}
+                      tone="primary"
+                    />
+                    <MetricLine
+                      label="Risks"
+                      value={executiveBriefing.risks.length}
+                      tone={
+                        executiveBriefing.risks.length > 0
+                          ? "warning"
+                          : "success"
+                      }
+                    />
+                    <MetricLine
+                      label="Opportunities"
+                      value={executiveBriefing.opportunities.length}
+                      tone="info"
+                    />
+                  </div>
+                </div>
+
+                {executiveBriefing.risks.slice(0, 1).map((risk) => (
+                  <div
+                    key={risk.id}
+                    className="rounded-2xl border border-rose-400/15 bg-rose-400/10 p-4"
+                  >
+                    <MGDBadge tone={risk.tone}>Risk summary</MGDBadge>
+                    <p className="mt-4 font-semibold text-white">
+                      {risk.title}
+                    </p>
+                    <p className="mt-4 text-sm leading-6 text-white/60">
+                      {risk.description}
+                    </p>
+                  </div>
+                ))}
+
+                {executiveBriefing.opportunities
+                  .slice(0, 1)
+                  .map((opportunity) => (
+                    <div
+                      key={opportunity.id}
+                      className="rounded-2xl border border-emerald-400/15 bg-emerald-400/10 p-4"
+                    >
+                      <MGDBadge tone={opportunity.tone}>
+                        Opportunity summary
+                      </MGDBadge>
+                      <p className="mt-4 font-semibold text-white">
+                        {opportunity.title}
+                      </p>
+                      <p className="mt-4 text-sm leading-6 text-white/60">
+                        {opportunity.description}
+                      </p>
+                    </div>
+                  ))}
+              </div>
             </div>
           </MGDWidget>
         </section>
 
-        <section className="mb-6 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
+        <section className="mb-6 grid gap-5 xl:grid-cols-[1.05fr_.95fr]">
           <MGDWidget
-            title="Operations Timeline"
-            eyebrow="Kernel events"
+            title="Executive Timeline"
+            eyebrow="Trends and signals"
             status="Live"
             tone="success"
-            footer="Eventos operacionais em tempo real."
+            footer="Linha do tempo executiva gerada a partir das tendencias calculadas."
           >
             <div className="space-y-4">
-              {state.timeline.map((item) => (
+              {healthReport.trends.map((item) => (
                 <div
                   key={item.id}
-                  className="flex gap-4 border-b border-white/10 pb-4 last:border-0 last:pb-0"
+                  className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:grid-cols-[72px_1fr_auto]"
                 >
-                  <span className="min-w-12 text-sm text-white/35">
+                  <span className="text-sm font-semibold text-white/40">
                     {item.time}
                   </span>
                   <div>
-                    <p className="font-medium">{item.title}</p>
-                    <p className="mt-1 text-sm leading-6 text-white/50">
-                      {item.description}
+                    <p className="font-semibold text-white">{item.title}</p>
+                    <p className="mt-1 text-sm leading-6 text-white/52">
+                      {item.detail}
                     </p>
+                  </div>
+                  <div className="sm:text-right">
+                    <MGDBadge tone={item.tone}>{item.direction}</MGDBadge>
                   </div>
                 </div>
               ))}
@@ -315,17 +600,87 @@ export default function CommandCenterPage() {
           </MGDWidget>
 
           <MGDWidget
-            title="Executive Summary"
-            eyebrow="Next best actions"
-            status="Pronto"
+            title="Priority Center"
+            eyebrow="Recommendations"
+            status={`${healthReport.recommendations.length} active`}
             tone="warning"
-            footer="Ordenado por impacto no negocio."
+            footer="Prioridades ordenadas por impacto financeiro e risco."
           >
-            <div className="space-y-3">
-              <MetricLine label="Prioridade 1" value="Repor Produto X" tone="danger" />
-              <MetricLine label="Prioridade 2" value="Separar pedidos" tone="warning" />
-              <MetricLine label="Prioridade 3" value="Manter campanha" tone="success" />
-              <MetricLine label="VIP motion" value="Ativar oferta" tone="primary" />
+            <div className="space-y-4">
+              {executiveBriefing.recommendations.map((priority, index) => (
+                <div
+                  key={priority.id}
+                  className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#6D5DFC]/20 text-sm font-bold text-violet-200">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <p className="font-semibold text-white">
+                          {priority.title}
+                        </p>
+                        <p className="mt-1 text-sm text-white/50">
+                          {priority.impact}
+                        </p>
+                        <p className="mt-2 text-xs leading-5 text-white/40">
+                          {priority.description}
+                        </p>
+                      </div>
+                    </div>
+                    <MGDBadge tone={priority.tone}>
+                      {priority.relatedArea}
+                    </MGDBadge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </MGDWidget>
+        </section>
+
+        <section className="mb-6 grid gap-5 xl:grid-cols-[.9fr_1.1fr]">
+          <MGDWidget
+            title="Business Alerts"
+            eyebrow="Risk and opportunity"
+            status={`${healthReport.alerts.length} active`}
+            tone={healthReport.alerts.length > 0 ? "danger" : "success"}
+            footer="Alertas filtrados para decisao executiva."
+          >
+            <div className="space-y-4">
+              {healthReport.alerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-white">{alert.title}</p>
+                    <MGDBadge tone={alert.tone}>Alert</MGDBadge>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-white/55">
+                    {alert.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </MGDWidget>
+
+          <MGDWidget
+            title="Quick Actions"
+            eyebrow="Executive shortcuts"
+            status="Ready"
+            tone="primary"
+            footer="Acoes de alto impacto geradas a partir das recomendacoes."
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              {executiveBriefing.nextBestActions.map((action) => (
+                <button
+                  key={action.id}
+                  className="min-h-14 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left text-sm font-semibold text-white/72 transition duration-300 hover:border-[#6D5DFC]/40 hover:bg-[#6D5DFC]/12 hover:text-white"
+                >
+                  {action.nextAction}
+                </button>
+              ))}
             </div>
           </MGDWidget>
         </section>

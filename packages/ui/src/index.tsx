@@ -50,7 +50,7 @@ export function MGDAppShell({ children }: { children: ReactNode }) {
               Enterprise Control
             </h2>
             <p className="mt-2 text-xs text-white/40">
-              Project TITAN / Sprint 004A
+              Project TITAN / Sprint 008
             </p>
           </div>
 
