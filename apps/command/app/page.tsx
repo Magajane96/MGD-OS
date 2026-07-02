@@ -20,14 +20,25 @@ import {
   Sparkline,
   TokenSwatch,
 } from "@mgd/ui";
-import { demoCommerceSnapshot, generateCommerceEvents } from "@mgd/widgets";
+import {
+  corporateAssetsWidgetManifest,
+  demoCommerceSnapshot,
+  demoCorporateAssetPortfolio,
+  generateCommerceEvents,
+  getCorporateAssetCategoryLabel,
+  getCorporateAssetCriticalityLabel,
+  getCorporateAssetStatusLabel,
+} from "@mgd/widgets";
 
 const state = demoCompanyState;
 const commerceSnapshot = demoCommerceSnapshot;
+const corporateAssetPortfolio = demoCorporateAssetPortfolio;
+
 seedCommandCenterEvents();
 generateCommerceEvents(commerceSnapshot).forEach((event) =>
   publishEvent(event),
 );
+
 const healthReport = generateBusinessHealthReport(state, { commerceSnapshot });
 const executiveBriefing = generateExecutiveBriefing(healthReport);
 
@@ -117,6 +128,56 @@ const commerceKpis = [
   },
 ] as const;
 
+const corporateAssetKpis = [
+  {
+    title: "Total Assets",
+    eyebrow: corporateAssetsWidgetManifest.name,
+    status: `${corporateAssetPortfolio.metrics.totalAssets} assets`,
+    value: corporateAssetPortfolio.metrics.totalAssets,
+    caption: "ativos corporativos registrados",
+    tone: "primary",
+    trend: [28, 38, 48, 58, 66, 74, 84],
+    footer: "Registro executivo inicial de ativos do MGD OS.",
+  },
+  {
+    title: "Strategic Assets",
+    eyebrow: "Executive relevance",
+    status: `${corporateAssetPortfolio.metrics.strategicAssets} strategic`,
+    value: corporateAssetPortfolio.metrics.strategicAssets,
+    caption: "ativos marcados como estrategicos",
+    tone: "success",
+    trend: [34, 44, 52, 62, 72, 78, 86],
+    footer: "Leitura restrita a criticidade e prontidao operacional.",
+  },
+  {
+    title: "Categories",
+    eyebrow: "Portfolio shape",
+    status: `${corporateAssetPortfolio.metrics.categories.length} categories`,
+    value: corporateAssetPortfolio.metrics.categories.length,
+    caption: "categorias executivas mapeadas",
+    tone: "info",
+    trend: corporateAssetPortfolio.metrics.categories.map((item) =>
+      Math.max(18, item.total * 22),
+    ),
+    footer: "Categorias tipadas para evolucao futura do portfolio.",
+  },
+  {
+    title: "Integration Readiness",
+    eyebrow: "Future integration",
+    status: `${corporateAssetPortfolio.metrics.averageIntegrationReadiness}% ready`,
+    value: `${corporateAssetPortfolio.metrics.averageIntegrationReadiness}%`,
+    caption: "media de prontidao para integracao",
+    tone:
+      corporateAssetPortfolio.metrics.averageIntegrationReadiness >= 80
+        ? "success"
+        : "warning",
+    trend: corporateAssetPortfolio.assets.map(
+      (asset) => asset.integrationReadiness,
+    ),
+    footer: "Indicador demonstrativo, sem integracoes reais nesta sprint.",
+  },
+] as const;
+
 const priorityTone: Record<
   MGDRealtimePriority,
   "neutral" | "success" | "warning" | "danger" | "info" | "primary"
@@ -126,6 +187,28 @@ const priorityTone: Record<
   high: "warning",
   critical: "danger",
 };
+
+const assetStatusTone = {
+  active: "success",
+  monitoring: "info",
+  attention: "warning",
+  planned: "neutral",
+} as const;
+
+const assetCriticalityTone = {
+  low: "neutral",
+  medium: "info",
+  high: "warning",
+  critical: "danger",
+} as const;
+
+const formatDateTime = (date: string) =>
+  new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(date));
 
 export default function CommandCenterPage() {
   return (
@@ -141,17 +224,18 @@ export default function CommandCenterPage() {
 
             <div className="relative">
               <div className="flex flex-wrap items-center gap-3">
-                <MGDBadge tone="primary">Commerce Integration</MGDBadge>
+                <MGDBadge tone="primary">Corporate Assets</MGDBadge>
                 <MGDBadge tone="success">Operational status online</MGDBadge>
-                <MGDBadge tone="info">Sprint 008</MGDBadge>
+                <MGDBadge tone="info">Sprint 009</MGDBadge>
               </div>
 
               <h1 className="mt-6 max-w-4xl text-5xl font-semibold leading-none tracking-tight text-white lg:text-7xl">
                 Digital Mission Control
               </h1>
               <p className="mt-5 max-w-3xl text-lg leading-8 text-white/68">
-                Sua empresa em modo cockpit executivo, agora recebendo eventos,
-                metricas e sinais comerciais em tempo real.
+                Sua empresa em modo cockpit executivo, agora com registro
+                inicial de ativos corporativos, sinais comerciais e metricas
+                operacionais em tempo real.
               </p>
 
               <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -165,18 +249,18 @@ export default function CommandCenterPage() {
                 </div>
                 <div className="rounded-[24px] border border-white/10 bg-[#050816]/35 p-4">
                   <p className="text-xs uppercase tracking-[0.22em] text-white/35">
-                    Company Pulse
+                    Corporate Assets
                   </p>
                   <p className="mt-3 text-2xl font-semibold text-white">
-                    {healthReport.operatingMode}
+                    {corporateAssetPortfolio.metrics.totalAssets} registered
                   </p>
                 </div>
                 <div className="rounded-[24px] border border-white/10 bg-[#050816]/35 p-4">
                   <p className="text-xs uppercase tracking-[0.22em] text-white/35">
-                    Executive focus
+                    Executive owner
                   </p>
                   <p className="mt-3 text-sm leading-6 text-white/65">
-                    {healthReport.executiveFocus}
+                    {corporateAssetPortfolio.owner}
                   </p>
                 </div>
               </div>
@@ -186,7 +270,7 @@ export default function CommandCenterPage() {
                   {executiveBriefing.nextBestActions[0]?.nextAction ??
                     healthReport.intelligence.nextBestAction}
                 </MGDButton>
-                <MGDButton variant="secondary">Abrir Priority Center</MGDButton>
+                <MGDButton variant="secondary">Abrir Corporate Assets</MGDButton>
               </div>
             </div>
           </div>
@@ -220,6 +304,176 @@ export default function CommandCenterPage() {
                   tone={item.tone}
                 />
               ))}
+            </div>
+          </MGDWidget>
+        </section>
+
+        <section className="mb-6">
+          <SectionHeader
+            eyebrow="Corporate Assets"
+            title="Executive asset portfolio"
+            description="Primeiro registro executivo de ativos corporativos do MGD OS, consumido por contratos tipados e preparado para evolucao futura."
+          />
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {corporateAssetKpis.map((kpi) => (
+              <MGDWidget
+                key={kpi.title}
+                title={kpi.title}
+                eyebrow={kpi.eyebrow}
+                status={kpi.status}
+                tone={kpi.tone}
+                footer={kpi.footer}
+              >
+                <div className="text-4xl font-semibold">{kpi.value}</div>
+                <p className="mt-3 text-sm text-white/55">{kpi.caption}</p>
+                <div className="mt-5">
+                  <Sparkline values={[...kpi.trend]} />
+                </div>
+              </MGDWidget>
+            ))}
+          </div>
+        </section>
+
+        <section
+          id="corporate-assets"
+          className="mb-6 grid gap-5 xl:grid-cols-[1.15fr_.85fr]"
+        >
+          <MGDWidget
+            title="Corporate Assets"
+            eyebrow="Executive registry"
+            status={`${corporateAssetPortfolio.assets.length} assets`}
+            tone="primary"
+            footer={`Ultima atualizacao: ${formatDateTime(
+              corporateAssetPortfolio.metrics.lastUpdatedAt,
+            )}`}
+          >
+            <div className="space-y-4">
+              {corporateAssetPortfolio.assets.map((asset) => (
+                <div
+                  key={asset.id}
+                  className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
+                >
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-white">
+                          {asset.name}
+                        </p>
+                        {asset.isStrategic ? (
+                          <MGDBadge tone="primary">Strategic</MGDBadge>
+                        ) : null}
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-white/50">
+                        {asset.description}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 lg:justify-end">
+                      <MGDBadge tone={assetStatusTone[asset.status]}>
+                        {getCorporateAssetStatusLabel(asset.status)}
+                      </MGDBadge>
+                      <MGDBadge
+                        tone={assetCriticalityTone[asset.criticality]}
+                      >
+                        {getCorporateAssetCriticalityLabel(asset.criticality)}
+                      </MGDBadge>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-4">
+                    <MetricLine
+                      label="Category"
+                      value={getCorporateAssetCategoryLabel(asset.category)}
+                      tone="info"
+                    />
+                    <MetricLine
+                      label="Owner"
+                      value={asset.owner}
+                      tone="primary"
+                    />
+                    <MetricLine
+                      label="Readiness"
+                      value={`${asset.integrationReadiness}%`}
+                      tone={
+                        asset.integrationReadiness >= 80
+                          ? "success"
+                          : "warning"
+                      }
+                    />
+                    <MetricLine
+                      label="Updated"
+                      value={formatDateTime(asset.updatedAt)}
+                      tone="neutral"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </MGDWidget>
+
+          <MGDWidget
+            title="Asset Portfolio"
+            eyebrow="Categories and readiness"
+            status={`${corporateAssetPortfolio.metrics.categories.length} categories`}
+            tone="info"
+            footer="Sem governanca, valuation, compliance completo, workflow juridico ou integracoes reais nesta sprint."
+          >
+            <div className="space-y-4">
+              {corporateAssetPortfolio.metrics.categories.map((item) => (
+                <div
+                  key={item.category}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                >
+                  <div className="mb-3 flex items-center justify-between gap-4">
+                    <p className="font-semibold text-white">
+                      {getCorporateAssetCategoryLabel(item.category)}
+                    </p>
+                    <MGDBadge tone="info">{item.total}</MGDBadge>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-2 rounded-full bg-gradient-to-r from-[#6D5DFC] to-emerald-300"
+                      style={{
+                        width: `${Math.max(
+                          12,
+                          (item.total /
+                            corporateAssetPortfolio.metrics.totalAssets) *
+                            100,
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <div className="rounded-[24px] border border-[#6D5DFC]/20 bg-[#6D5DFC]/10 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-violet-200">
+                  Portfolio summary
+                </p>
+                <div className="mt-5 space-y-3">
+                  <MetricLine
+                    label="Integration readiness"
+                    value={`${corporateAssetPortfolio.metrics.averageIntegrationReadiness}%`}
+                    tone="success"
+                  />
+                  <MetricLine
+                    label="Executive owner"
+                    value={corporateAssetPortfolio.owner}
+                    tone="primary"
+                  />
+                  <MetricLine
+                    label="Strategic assets"
+                    value={corporateAssetPortfolio.metrics.strategicAssets}
+                    tone="info"
+                  />
+                  <MetricLine
+                    label="Last update"
+                    value={formatDateTime(
+                      corporateAssetPortfolio.metrics.lastUpdatedAt,
+                    )}
+                    tone="neutral"
+                  />
+                </div>
+              </div>
             </div>
           </MGDWidget>
         </section>

@@ -57,3 +57,73 @@ export interface WidgetManifest {
   events: string[];
   actions: WidgetAction[];
 }
+
+export type CorporateAssetCategory =
+  | "brand"
+  | "domain"
+  | "system"
+  | "data"
+  | "process"
+  | "channel"
+  | "partnership";
+
+export type CorporateAssetStatus =
+  | "active"
+  | "monitoring"
+  | "attention"
+  | "planned";
+
+export type CorporateAssetCriticality = "low" | "medium" | "high" | "critical";
+
+export type CorporateAssetOwner =
+  | "Executive Office"
+  | "Operations"
+  | "Technology"
+  | "Commerce"
+  | "Brand";
+
+export interface CorporateAsset {
+  id: MGDId;
+  name: string;
+  category: CorporateAssetCategory;
+  description: string;
+  owner: CorporateAssetOwner;
+  status: CorporateAssetStatus;
+  criticality: CorporateAssetCriticality;
+  isStrategic: boolean;
+  integrationReadiness: number;
+  updatedAt: string;
+}
+
+export interface CorporateAssetPortfolioCategoryMetric {
+  category: CorporateAssetCategory;
+  total: number;
+}
+
+export interface CorporateAssetPortfolioStatusMetric {
+  status: CorporateAssetStatus;
+  total: number;
+}
+
+export interface CorporateAssetPortfolioCriticalityMetric {
+  criticality: CorporateAssetCriticality;
+  total: number;
+}
+
+export interface CorporateAssetPortfolioMetrics {
+  totalAssets: number;
+  strategicAssets: number;
+  categories: CorporateAssetPortfolioCategoryMetric[];
+  averageIntegrationReadiness: number;
+  statusDistribution: CorporateAssetPortfolioStatusMetric[];
+  criticalityDistribution: CorporateAssetPortfolioCriticalityMetric[];
+  lastUpdatedAt: string;
+}
+
+export interface CorporateAssetPortfolioSnapshot {
+  id: MGDId;
+  generatedAt: string;
+  owner: CorporateAssetOwner;
+  assets: CorporateAsset[];
+  metrics: CorporateAssetPortfolioMetrics;
+}
